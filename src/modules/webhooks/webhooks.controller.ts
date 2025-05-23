@@ -35,7 +35,7 @@ export class WebhooksController {
   }
 
   @ApiOperation({
-    summary: 'Create a new webhook subscription',
+    summary: 'Retrieve many webhooks.',
   })
   @ApiResponse({
     status: 201,

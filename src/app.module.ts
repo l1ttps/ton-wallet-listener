@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { WebhooksModule } from './webhooks/webhooks.module';
+import { CombineModule } from './modules/combine.module';
 
 @Module({
   imports: [
@@ -12,7 +12,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
       entities: [__dirname + '/**/*.entity.{js,ts}'],
       synchronize: true,
     }),
-    WebhooksModule,
+    CombineModule,
   ],
   controllers: [AppController],
   providers: [AppService],
