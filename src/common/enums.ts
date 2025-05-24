@@ -21,3 +21,8 @@ export enum Sort {
   DESC = 'desc',
   ASC = 'asc',
 }
+
+export enum Direction {
+  INCOMING = 'INCOMING',
+  OUTGOING = 'OUTGOING',
+}

@@ -2,8 +2,8 @@ import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosError } from 'axios';
 import * as fs from 'fs/promises';
-import { Network, Sort, TON_CENTER_API_V3 } from 'src/common/enums';
-import { Transaction } from 'src/common/interfaces';
+import { Direction, Network, Sort, TON_CENTER_API_V3 } from 'src/common/enums';
+import { Notification, Transaction } from 'src/common/interfaces';
 
 @Injectable()
 export class TonCenterService implements OnModuleDestroy {
@@ -112,18 +112,25 @@ export class TonCenterService implements OnModuleDestroy {
 
       if (in_msg?.value) {
         const valueTON = parseInt(in_msg.value, 10) / 1e9;
-        this.logger.log(
-          `[INCOMING] Received ${valueTON} TON from ${in_msg.source ?? 'unknown'} at ${new Date(now * 1000).toISOString()} | TxHash: ${hash}`,
-        );
+        this.pushNotification({
+          value: valueTON,
+          direction: Direction.INCOMING,
+          message: in_msg,
+          timeStamp: now,
+        });
       }
 
       if (out_msgs?.length > 0) {
         for (const msg of out_msgs) {
           if (msg.value) {
             const valueTON = parseInt(msg.value, 10) / 1e9;
-            this.logger.log(
-              `[OUTGOING] Sent ${valueTON} TON to ${msg.destination ?? 'unknown'} at ${new Date(now * 1000).toISOString()} | TxHash: ${hash}`,
-            );
+
+            this.pushNotification({
+              value: valueTON,
+              direction: Direction.OUTGOING,
+              message: msg,
+              timeStamp: now,
+            });
           }
         }
       }
@@ -134,6 +141,34 @@ export class TonCenterService implements OnModuleDestroy {
         }`,
       );
     }
+  }
+
+  private pushNotification(notification: Notification): void {
+    this.pushLog(notification);
+    // TODO: Push notification
+  }
+
+  private pushLog(notification: Notification): void {
+    const { value, direction, message, timeStamp } = notification;
+    const timestamp = new Date(timeStamp * 1000).toISOString();
+    const counterparty = this.getCounterpartyAddress(direction, message);
+    const action = direction === Direction.INCOMING ? 'Received' : 'Sent';
+    const directionTag =
+      direction === Direction.INCOMING ? 'INCOMING' : 'OUTGOING';
+
+    this.logger.log(
+      `[${directionTag}] ${action} ${value} TON ${this.getPreposition(direction)} ${counterparty} at ${timestamp} | TxHash: ${message.hash}`,
+    );
+  }
+
+  private getCounterpartyAddress(direction: Direction, message: any): string {
+    return direction === Direction.INCOMING
+      ? (message.source ?? 'unknown')
+      : (message.destination ?? 'unknown');
+  }
+
+  private getPreposition(direction: Direction): string {
+    return direction === Direction.INCOMING ? 'from' : 'to';
   }
 
   public stopPolling(): void {
