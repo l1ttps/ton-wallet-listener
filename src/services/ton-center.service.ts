@@ -13,7 +13,7 @@ export class TonCenterService implements OnModuleDestroy {
   private readonly address: string;
   private readonly frequency: number;
   private isRunning = false;
-  private readonly LAST_TIME_FILE = './lastSeenTime.txt';
+  private readonly LAST_TIME_FILE = './last-seen-time.txt';
 
   constructor(private readonly configService: ConfigService) {
     this.currentNetwork = this.configService.get<Network>(
@@ -21,11 +21,11 @@ export class TonCenterService implements OnModuleDestroy {
       Network.MAINNET,
     );
     this.apiUrl = TON_CENTER_API_V3[this.currentNetwork] + '/transactions';
-    this.address = this.configService.get<string>('DEFAULT_ADDRESS')!;
+    this.address = this.configService.get<string>('ADDRESS')!;
     this.frequency = this.configService.get<number>('FREQUENCY', 1000);
 
     if (!this.address) {
-      throw new Error('DEFAULT_ADDRESS is not configured');
+      throw new Error('ADDRESS is not configured');
     }
 
     this.init();
