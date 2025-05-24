@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - '3133:3133'
+    environment:
+      NODE_ENV: production
+    volumes:
+      - .:/app
+    networks:
+      - ton-network
+
+networks:
+  ton-network:
+    driver: bridge
