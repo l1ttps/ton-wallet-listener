@@ -4,6 +4,8 @@ import axios, { AxiosError } from 'axios';
 import * as fs from 'fs/promises';
 import { Direction, Network, Sort, TON_CENTER_API_V3 } from 'src/common/enums';
 import { Notification, Transaction } from 'src/common/interfaces';
+import { Webhook } from 'src/modules/webhooks/entities/webhook.entity';
+import { WebhooksService } from 'src/modules/webhooks/webhooks.service';
 
 @Injectable()
 export class TonCenterService implements OnModuleDestroy {
@@ -14,6 +16,7 @@ export class TonCenterService implements OnModuleDestroy {
   private readonly frequency: number;
   private isRunning = false;
   private readonly LAST_TIME_FILE = './last-seen-time.txt';
+  private webhookService: WebhooksService;
 
   constructor(private readonly configService: ConfigService) {
     this.currentNetwork = this.configService.get<Network>(
@@ -143,9 +146,11 @@ export class TonCenterService implements OnModuleDestroy {
     }
   }
 
-  private pushNotification(notification: Notification): void {
+  private async pushNotification(notification: Notification): Promise<void> {
     this.pushLog(notification);
+    console.log(notification);
     // TODO: Push notification
+    this.webhookService.pushNotification(notification);
   }
 
   private pushLog(notification: Notification): void {

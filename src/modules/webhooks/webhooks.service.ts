@@ -7,6 +7,8 @@ import {
   GetManyBaseDto,
   GetManyBaseQueryParams,
 } from 'src/common/dto/get-many.dto';
+import axios from 'axios';
+import { Notification } from 'src/common/interfaces';
 
 @Injectable()
 export class WebhooksService {
@@ -14,6 +16,10 @@ export class WebhooksService {
     @InjectRepository(Webhook)
     private readonly webhookRepository: Repository<Webhook>,
   ) {}
+
+  public async getAll(): Promise<Webhook[]> {
+    return await this.webhookRepository.find();
+  }
 
   /**
    * Creates a new webhook
@@ -67,5 +73,18 @@ export class WebhooksService {
     } catch (error) {
       throw new InternalServerErrorException(error.message);
     }
+  }
+
+  public async pushNotification(notification: Notification) {
+    const webhooks = await this.getAll();
+    Promise.allSettled(
+      webhooks.map((webhook) =>
+        axios.post(webhook.url, notification, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      ),
+    );
   }
 }
