@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import axios, { AxiosError } from 'axios';
 import * as fs from 'fs/promises';
 import { Network, Sort, TON_CENTER_API_V3 } from 'src/common/enums';
+import { Transaction } from 'src/common/interfaces';
 
 @Injectable()
 export class TonCenterService implements OnModuleDestroy {
@@ -34,11 +35,17 @@ export class TonCenterService implements OnModuleDestroy {
     let lastSeenTime: number | undefined;
     try {
       const content = await fs.readFile(this.LAST_TIME_FILE, 'utf-8');
-      lastSeenTime = parseInt(content.trim(), 10);
-      if (isNaN(lastSeenTime)) throw new Error('Invalid timestamp in file');
+      const parsed = parseInt(content.trim(), 10);
+      if (isNaN(parsed)) throw new Error('Invalid timestamp in file');
+      lastSeenTime = parsed;
       this.logger.log(`Loaded lastSeenTime from file: ${lastSeenTime}`);
     } catch (err) {
-      this.logger.warn('No previous lastSeenTime file found, starting fresh.');
+      this.logger.warn('No valid lastSeenTime found. Using current time.');
+      lastSeenTime = Math.floor(Date.now() / 1000); // seconds
+      await fs.writeFile(this.LAST_TIME_FILE, lastSeenTime.toString());
+      this.logger.log(
+        `Created new lastSeenTime file with timestamp: ${lastSeenTime}`,
+      );
     }
 
     this.startPolling(lastSeenTime);
@@ -66,20 +73,27 @@ export class TonCenterService implements OnModuleDestroy {
         if (currentStart) {
           params.start_utime = currentStart;
         }
+
         const response = await axios.get(this.apiUrl, {
           params,
           timeout: 10000,
         });
 
-        const transactions = response.data.transactions;
-        if (transactions.length > 0) {
-        }
+        const transactions: Transaction[] = response.data.transactions;
 
-        const lastTx = transactions[0];
-        // console.log(lastTx);
-        // for (const tx of transactions) {
-        //   this.processTransaction(tx);
-        // }
+        if (transactions.length > 0) {
+          for (const tx of transactions) {
+            await this.processTransaction(tx);
+          }
+
+          const lastTx = transactions[0];
+          currentStart = lastTx.now + 1;
+
+          await fs.writeFile(this.LAST_TIME_FILE, currentStart.toString());
+          this.logger.log(`Updated lastSeenTime to ${currentStart}`);
+        } else {
+          this.logger.debug('No new transactions found.');
+        }
       } catch (error) {
         const errorMessage =
           error instanceof AxiosError
@@ -92,16 +106,32 @@ export class TonCenterService implements OnModuleDestroy {
     }
   }
 
-  private async processTransaction(tx: any): Promise<void> {
+  private async processTransaction(tx: Transaction): Promise<void> {
     try {
-      const realValue = +parseFloat(tx.in_msg.value) / 10 ** 9;
-      console.log(realValue);
-      this.logger.debug(
-        `Tx hash: ${tx.hash}, value: ${tx.in_msg?.value ?? 'N/A'}`,
-      );
+      const { in_msg, out_msgs, hash, now } = tx;
+
+      if (in_msg?.value) {
+        const valueTON = parseInt(in_msg.value, 10) / 1e9;
+        this.logger.log(
+          `[INCOMING] Received ${valueTON} TON from ${in_msg.source ?? 'unknown'} at ${new Date(now * 1000).toISOString()} | TxHash: ${hash}`,
+        );
+      }
+
+      if (out_msgs?.length > 0) {
+        for (const msg of out_msgs) {
+          if (msg.value) {
+            const valueTON = parseInt(msg.value, 10) / 1e9;
+            this.logger.log(
+              `[OUTGOING] Sent ${valueTON} TON to ${msg.destination ?? 'unknown'} at ${new Date(now * 1000).toISOString()} | TxHash: ${hash}`,
+            );
+          }
+        }
+      }
     } catch (err) {
       this.logger.error(
-        `Error processing transaction: ${err instanceof Error ? err.message : err}`,
+        `Error processing transaction: ${
+          err instanceof Error ? err.message : err
+        }`,
       );
     }
   }
