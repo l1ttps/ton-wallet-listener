@@ -36,6 +36,7 @@ A NestJS-based service for listening to TON blockchain wallet transactions and s
 2. Open `.env` and configure the following variables:
 
    - `ADDRESS`: The TON wallet address to monitor
+   - `WEBHOOK`: Set default webhook url
    - `NETWORK`: Network to use (`mainnet` or `testnet`)
    - `FREQUENCY`: Polling interval in milliseconds (e.g., `5000`)
    - `API_KEY`: Your Toncenter API key

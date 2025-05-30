@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeleteResult, Repository } from 'typeorm';
 import { Webhook } from './entities/webhook.entity';
@@ -9,13 +13,31 @@ import {
 } from 'src/common/dto/get-many.dto';
 import axios from 'axios';
 import { Notification } from 'src/common/interfaces';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class WebhooksService {
+export class WebhooksService implements OnModuleInit {
   constructor(
     @InjectRepository(Webhook)
     private readonly webhookRepository: Repository<Webhook>,
+    private configService: ConfigService,
   ) {}
+
+  onModuleInit() {
+    const checkDefaultWebhookUrl = this.configService.get<string>(
+      'WEBHOOK',
+      '',
+    );
+    if (checkDefaultWebhookUrl || checkDefaultWebhookUrl?.length > 0) {
+      this.webhookRepository
+        .createQueryBuilder('webhooks')
+        .insert()
+        .into(Webhook)
+        .values({ url: checkDefaultWebhookUrl })
+        .orIgnore()
+        .execute();
+    }
+  }
 
   public async getAll(): Promise<Webhook[]> {
     return await this.webhookRepository.find();
